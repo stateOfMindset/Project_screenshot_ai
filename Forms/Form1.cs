@@ -8,6 +8,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Tesseract;
@@ -20,6 +21,7 @@ namespace Project_screenshot_ai
         private bool isCapturing = false;
         private Rectangle selectedRegion = Rectangle.Empty;
         private OverlayForm overlay;
+        private Bitmap ScreenCaptureForDisplay;
 
         public Form1()
         {
@@ -27,6 +29,7 @@ namespace Project_screenshot_ai
             screenshotTimer = new Timer();
             screenshotTimer.Interval = 1000;
             screenshotTimer.Tick += ScreenshotTimer_Tick;
+            screenshotTimer.Tick += Capture_screenshot_Click;
         }
         private void ScreenshotTimer_Tick(object sender, EventArgs e)
         {
@@ -61,7 +64,6 @@ namespace Project_screenshot_ai
             }
             return screenshot;
         }
-
 
         public static string ExtractHebrewText(Bitmap image, string tessDataPath)
         {
@@ -103,28 +105,106 @@ namespace Project_screenshot_ai
             string tessDataPath = Path.Combine(Application.StartupPath, "Data", "tessdata");
             string jsonPath = Path.Combine(Application.StartupPath, "Data", "json", "stage_1.json");
             Bitmap screenshot;
+
             if (selectedRegion != RectangleF.Empty)
                 screenshot = CaptureRegion(selectedRegion);
             else
                 screenshot = CaptureScreen();
 
-            string text = ExtractHebrewText(screenshot, tessDataPath);
+            Bitmap processed = Preprocess(screenshot);
+
+            string text = ExtractHebrewText(processed, tessDataPath);
             char[] sp = { '\n', '\r' };
-            string[] split = text.Split(sp);
-            string returnRes = "";
+
+            string clean = Regex.Replace(text, "[\\[\\]<>]", "");
+
+            string[] split = clean.Split(sp);
+            List<string> lines = new List<string>();
             foreach (string s in split)
             {
                 if (!string.IsNullOrWhiteSpace(s))
                 {
                     Console.WriteLine("matches found - " + s);
-                    returnRes = String.Join("," , s);
+                    lines.Add(s);
                 }
             }
+
+            string returnRes = string.Join(",", lines);
             Console.WriteLine($"returnRes = {returnRes}");
-            string answer = SearchInJson(text, jsonPath);
+            string answer = SearchInJson(returnRes, jsonPath);
+
+            string logDir = Path.Combine(Application.StartupPath, "Logs");
+            Directory.CreateDirectory(logDir); 
+            string logPath = Path.Combine(logDir, "debug_output.txt");
+            string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} | {text}{Environment.NewLine}";
+            File.AppendAllText(logPath, logEntry, Encoding.UTF8);
+
+
             ShowResult(answer);
 
         }
+
+        public static Bitmap Preprocess(Bitmap input)
+        {
+            // 1. Convert to grayscale
+            Bitmap gray = new Bitmap(input.Width, input.Height, PixelFormat.Format24bppRgb);
+            using (Graphics g = Graphics.FromImage(gray))
+            {
+                var colorMatrix = new System.Drawing.Imaging.ColorMatrix(
+                    new float[][]
+                    {
+                new float[] {0.3f, 0.3f, 0.3f, 0, 0},
+                new float[] {0.59f, 0.59f, 0.59f, 0, 0},
+                new float[] {0.11f, 0.11f, 0.11f, 0, 0},
+                new float[] {0,    0,    0,    1, 0},
+                new float[] {0,    0,    0,    0, 1}
+                    });
+                var attributes = new ImageAttributes();
+                attributes.SetColorMatrix(colorMatrix);
+                g.DrawImage(input, new Rectangle(0, 0, input.Width, input.Height), 0, 0, input.Width, input.Height, GraphicsUnit.Pixel, attributes);
+            }
+
+            bool isDark = IsImageDark(gray);
+
+            for (int y = 0; y < gray.Height; y++)
+            {
+                for(int x = 0; x < gray.Width; x++)
+                {
+                    Color pixel = gray.GetPixel(x, y);
+                    int brightness = (pixel.R + pixel.G + pixel.B) / 3;
+                    Color newColor;
+
+                    if (isDark)
+                        newColor = (brightness > 128) ? Color.Black : Color.White;
+                    else
+                        newColor = (brightness > 128) ? Color.White : Color.Black;
+
+                    gray.SetPixel(x, y, newColor);
+                }
+            }
+
+            return gray;
+        }
+
+        private static bool IsImageDark(Bitmap image)
+        {
+            long totalBrightness = 0;
+            for (int y = 0; y < image.Height; y++)
+            {
+                for (int x = 0; x < image.Width; x++)
+                {
+                     Color pixel = image.GetPixel(x, y);
+                    int brightness = (pixel.R + pixel.G + pixel.B) / 3;
+                    totalBrightness += brightness;
+                }
+            }
+
+            long totalPixels = image.Width * image.Height;
+            int averageBrightness = (int) (totalBrightness / totalPixels);
+
+            return averageBrightness < 128;
+        }
+
 
         private void selectRegionButton_Click(object sender, EventArgs e)
         {
@@ -161,7 +241,26 @@ namespace Project_screenshot_ai
 
         }
 
-       
+        private void Capture_screenshot_Click(object sender, EventArgs e)
+        {
+            if (selectedRegion == Rectangle.Empty)
+                return;
+
+            ScreenCaptureForDisplay = CaptureRegion(selectedRegion);
+
+            pictureBox1.SizeMode = PictureBoxSizeMode.AutoSize;
+            pictureBox1.Image = ScreenCaptureForDisplay;
+
+            int extraHeight = captureButton.Height + 85;
+            int newWidth = Math.Max(pictureBox1.Width + 40 , this.MinimumSize.Width);
+            int newHeight = Math.Max(pictureBox1.Height + extraHeight, this.MinimumSize.Height);
+
+            this.Size = new Size(newWidth, newHeight);
+
+
+        }
+
+
     }
 }
 
