@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -22,6 +23,7 @@ namespace Project_screenshot_ai
         private Rectangle selectedRegion = Rectangle.Empty;
         private OverlayForm overlay;
         private Bitmap ScreenCaptureForDisplay;
+        private Random rnd = new Random();
 
         public Form1()
         {
@@ -33,11 +35,13 @@ namespace Project_screenshot_ai
         }
         private void ScreenshotTimer_Tick(object sender, EventArgs e)
         {
+            this.Refresh();
             ProcessScreenshot();
         }
 
         private void captureButton_Click(object sender, EventArgs e)
         {
+
             if (!isCapturing)
             {
                 screenshotTimer.Start();
@@ -92,11 +96,12 @@ namespace Project_screenshot_ai
             return match != null ? match.answer : "No match found.";
         }
 
-        public void ShowResult(string result)
+        public void ShowResult(string answer , string question)
         {
             this.Invoke((MethodInvoker)delegate
             {
-                resultLabel.Text = result; // resultLabel is a Label on your form
+                resultLabel.Text = answer; // resultLabel is a Label on your form
+                label_verify_question.Text = question;
             });
         }
 
@@ -111,8 +116,10 @@ namespace Project_screenshot_ai
             else
                 screenshot = CaptureScreen();
 
-            Bitmap processed = Preprocess(screenshot);
+            var sw = Stopwatch.StartNew();
 
+            Bitmap scaled = ScaleBitmap(screenshot , (float)1.2);
+            Bitmap processed = Preprocess(scaled);
             string text = ExtractHebrewText(processed, tessDataPath);
             char[] sp = { '\n', '\r' };
 
@@ -124,23 +131,73 @@ namespace Project_screenshot_ai
             {
                 if (!string.IsNullOrWhiteSpace(s))
                 {
-                    Console.WriteLine("matches found - " + s);
                     lines.Add(s);
                 }
             }
 
-            string returnRes = string.Join(",", lines);
-            Console.WriteLine($"returnRes = {returnRes}");
-            string answer = SearchInJson(returnRes, jsonPath);
+            string returnRes = string.Join(" ", lines);
 
-            string logDir = Path.Combine(Application.StartupPath, "Logs");
-            Directory.CreateDirectory(logDir); 
-            string logPath = Path.Combine(logDir, "debug_output.txt");
-            string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} | {text}{Environment.NewLine}";
-            File.AppendAllText(logPath, logEntry, Encoding.UTF8);
+            string[] answers = Tokenize(returnRes);
+            if (! (answers.Length > 0))
+                return;
+
+            Console.WriteLine("elapsted 1 : " + sw.ElapsedMilliseconds);
+
+            string folderPath = Path.Combine(Application.StartupPath, "Data", "db");
+            string dbPath = Path.Combine(folderPath, "stage_1.db");
+            DatabaseHelper dh = new DatabaseHelper(dbPath, folderPath);
+            List<QA> Possible_results = dh.SearchForMatchInFTS5(answers , "qa_search");
+
+            if (Possible_results.Count == 0)
+                return;
 
 
-            ShowResult(answer);
+            string originalQuestion = "";
+
+            foreach(string s in answers)
+            {
+                originalQuestion += s;
+            }
+
+            Console.WriteLine("elapsted 2 : " + sw.ElapsedMilliseconds);
+
+            float bestMatchingFactor = 0;
+            int i = 0;
+            int bestMatchingFactorIndex = 0;
+            foreach (QA p in Possible_results)
+            {
+                float mf = LevinshtienDistance(originalQuestion , p.Question);
+                if (mf > bestMatchingFactor)
+                {
+                    bestMatchingFactor = mf;
+                    bestMatchingFactorIndex = i;
+                }
+                i++;
+            }
+
+            QA res = Possible_results[bestMatchingFactorIndex];
+
+            if (label_verify_question.Text == res.Question)
+                return;
+
+            if (res.Answer.Trim().Equals("נכון"))
+                resultLabel.BackColor = Color.Lime;
+            else
+                resultLabel.BackColor = Color.Red;
+
+            
+           Color randomColor = Color.FromArgb(rnd.Next(100, 256), rnd.Next(100, 256), rnd.Next(100, 256));
+           label_verify_question.BackColor = randomColor;
+
+
+           ShowResult(res.Answer , res.Question);
+
+            sw.Stop();
+            Console.WriteLine($"elapsted 3 : {sw.ElapsedMilliseconds} ms");
+
+            Console.WriteLine(Possible_results[bestMatchingFactorIndex].Question);
+
+
 
         }
 
@@ -260,7 +317,59 @@ namespace Project_screenshot_ai
 
         }
 
+        string[] Tokenize(string text)
+        {
+            string normalized = text.ToLower();
+            normalized = Regex.Replace(normalized, @"[\u0590-\u05C7]", "");
 
+            return Regex.Split(normalized, @"\s+")
+                .Where(t => t.Length > 0)
+                .ToArray();
+        }
+
+        public Bitmap ScaleBitmap(Bitmap source , float scale)
+        {
+            int newWidth = (int)(source.Width * scale);
+            int newHeight = (int)(source.Height * scale);
+
+            var bmp = new Bitmap(newWidth, newHeight);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.DrawImage(source , 0 , 0 , newWidth , newHeight );
+            }
+
+            return bmp;
+        }
+
+        private float LevinshtienDistance(string originalQuestion , string questionFromDb)
+        {
+            var sourceLength1 = originalQuestion.Length;
+            var sourceLength2 = questionFromDb.Length;
+
+            var matrix = new int[sourceLength1 + 1 , sourceLength2 + 1];
+
+            if (sourceLength1 == 0)
+                return sourceLength2;
+
+            if(sourceLength2 == 0)
+                return sourceLength1;
+
+            int i, j;
+            for(i = 0; i <= sourceLength1;matrix[i,0]= i++) { }
+            for (j = 0; j <= sourceLength2; matrix[0, j] = j++) { }
+
+            for (i = 1; i <= sourceLength1; i++) {
+                for (j = 1; j <= sourceLength2; j++) {
+                    var cost = (questionFromDb[j-1] == originalQuestion[i-1]) ? 0 : 1;
+
+                    matrix[i, j] = Math.Min(Math.Min(matrix[i - 1, j] + 1, matrix[i - 1, j - 1] + cost), matrix[i, j - 1] + 1);
+
+                }
+            }
+
+            return (1 - (float)matrix[i-1 , j-1]/Math.Max(sourceLength2,sourceLength1));
+        }
     }
 }
 

@@ -32,7 +32,7 @@
             this.captureButton = new System.Windows.Forms.Button();
             this.selectRegionButton = new System.Windows.Forms.Button();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
-            this.Capture_screenshot = new System.Windows.Forms.Button();
+            this.label_verify_question = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -61,9 +61,9 @@
             // selectRegionButton
             // 
             this.selectRegionButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.selectRegionButton.Location = new System.Drawing.Point(612, 421);
+            this.selectRegionButton.Location = new System.Drawing.Point(580, 413);
             this.selectRegionButton.Name = "selectRegionButton";
-            this.selectRegionButton.Size = new System.Drawing.Size(179, 48);
+            this.selectRegionButton.Size = new System.Drawing.Size(187, 53);
             this.selectRegionButton.TabIndex = 2;
             this.selectRegionButton.Text = "select Region Button";
             this.selectRegionButton.UseVisualStyleBackColor = true;
@@ -79,16 +79,16 @@
             this.pictureBox1.TabIndex = 3;
             this.pictureBox1.TabStop = false;
             // 
-            // Capture_screenshot
+            // label_verify_question
             // 
-            this.Capture_screenshot.Anchor = System.Windows.Forms.AnchorStyles.Bottom;
-            this.Capture_screenshot.Location = new System.Drawing.Point(441, 422);
-            this.Capture_screenshot.Name = "Capture_screenshot";
-            this.Capture_screenshot.Size = new System.Drawing.Size(133, 46);
-            this.Capture_screenshot.TabIndex = 4;
-            this.Capture_screenshot.Text = "Capture_screenshot";
-            this.Capture_screenshot.UseVisualStyleBackColor = true;
-            this.Capture_screenshot.Click += new System.EventHandler(this.Capture_screenshot_Click);
+            this.label_verify_question.Anchor = System.Windows.Forms.AnchorStyles.Bottom;
+            this.label_verify_question.Font = new System.Drawing.Font("Microsoft Sans Serif", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
+            this.label_verify_question.Location = new System.Drawing.Point(402, 413);
+            this.label_verify_question.Name = "label_verify_question";
+            this.label_verify_question.Size = new System.Drawing.Size(172, 53);
+            this.label_verify_question.TabIndex = 4;
+            this.label_verify_question.Text = "No Data Yet";
+            this.label_verify_question.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // Form1
             // 
@@ -96,7 +96,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.ClientSize = new System.Drawing.Size(820, 490);
-            this.Controls.Add(this.Capture_screenshot);
+            this.Controls.Add(this.label_verify_question);
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.selectRegionButton);
             this.Controls.Add(this.captureButton);
@@ -115,7 +115,7 @@
         private System.Windows.Forms.Button captureButton;
         private System.Windows.Forms.Button selectRegionButton;
         private System.Windows.Forms.PictureBox pictureBox1;
-        private System.Windows.Forms.Button Capture_screenshot;
+        private System.Windows.Forms.Label label_verify_question;
     }
 }
 
