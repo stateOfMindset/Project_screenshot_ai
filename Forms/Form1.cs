@@ -10,33 +10,55 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Tesseract;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Project_screenshot_ai
 {
     public partial class Form1 : Form
     {
-        private Timer screenshotTimer;
+        private System.Windows.Forms.Timer screenshotTimer;
         private bool isCapturing = false;
         private Rectangle selectedRegion = Rectangle.Empty;
         private OverlayForm overlay;
         private Bitmap ScreenCaptureForDisplay;
         private Random rnd = new Random();
 
-        public Form1()
+        private string[] targetWords = { "מילה", "ל-", "נרדפת" };
+        internal string dbname { get; set; }
+
+        Dictionary<string, string> synonymMap = new Dictionary<string, string>
+{
+        { "new york", "nyc" },
+        { "machine learning", "ml" },
+        { "artificial intelligence", "ai" }
+};
+
+
+
+        public Form1(string dbname)
         {
             InitializeComponent();
-            screenshotTimer = new Timer();
+            screenshotTimer = new System.Windows.Forms.Timer();
+
             screenshotTimer.Interval = 1000;
+
             screenshotTimer.Tick += ScreenshotTimer_Tick;
             screenshotTimer.Tick += Capture_screenshot_Click;
+            this.dbname = dbname;
+
+
         }
+
         private void ScreenshotTimer_Tick(object sender, EventArgs e)
         {
-            this.Refresh();
+
             ProcessScreenshot();
+
+
         }
 
         private void captureButton_Click(object sender, EventArgs e)
@@ -88,19 +110,27 @@ namespace Project_screenshot_ai
             return "ERROR";
         }
 
-        public static string SearchInJson(string extractedText, string jsonPath)
-        {
-            var json = File.ReadAllText(jsonPath);
-            var items = JsonConvert.DeserializeObject<List<MyItem>>(json);
-            var match = items.FirstOrDefault(i => i.question.Contains(extractedText));
-            return match != null ? match.answer : "No match found.";
-        }
-
-        public void ShowResult(string answer , string question)
+        public void ShowResult(string answer, string question)
         {
             this.Invoke((MethodInvoker)delegate
             {
-                resultLabel.Text = answer; // resultLabel is a Label on your form
+                if (label_verify_question.Text == question)
+                    return;
+
+                if (answer.Trim().Equals("נכון"))
+                    resultLabel.BackColor = Color.Lime;
+                else if (answer.Trim().Equals("לא נכון"))
+                    resultLabel.BackColor = Color.Red;
+                else
+                {
+                    resultLabel.BackColor = Color.Purple;
+                    resultLabel.ForeColor = Color.White;
+                }
+
+                Color randomColor = Color.FromArgb(rnd.Next(100, 256), rnd.Next(100, 256), rnd.Next(100, 256));
+                label_verify_question.BackColor = randomColor;
+
+                resultLabel.Text = answer;
                 label_verify_question.Text = question;
             });
         }
@@ -108,7 +138,6 @@ namespace Project_screenshot_ai
         private void ProcessScreenshot()
         {
             string tessDataPath = Path.Combine(Application.StartupPath, "Data", "tessdata");
-            string jsonPath = Path.Combine(Application.StartupPath, "Data", "json", "stage_1.json");
             Bitmap screenshot;
 
             if (selectedRegion != RectangleF.Empty)
@@ -118,14 +147,12 @@ namespace Project_screenshot_ai
 
             var sw = Stopwatch.StartNew();
 
-            Bitmap scaled = ScaleBitmap(screenshot , (float)1.2);
+            Bitmap scaled = ScaleBitmap(screenshot, (float)1.1);
             Bitmap processed = Preprocess(scaled);
             string text = ExtractHebrewText(processed, tessDataPath);
-            char[] sp = { '\n', '\r' };
+            string[] split = cleanString(text);
 
-            string clean = Regex.Replace(text, "[\\[\\]<>]", "");
 
-            string[] split = clean.Split(sp);
             List<string> lines = new List<string>();
             foreach (string s in split)
             {
@@ -138,15 +165,16 @@ namespace Project_screenshot_ai
             string returnRes = string.Join(" ", lines);
 
             string[] answers = Tokenize(returnRes);
-            if (! (answers.Length > 0))
+            if (!(answers.Length > 0))
                 return;
 
-            Console.WriteLine("elapsted 1 : " + sw.ElapsedMilliseconds);
+            //Console.WriteLine("elapsted 1 : " + sw.ElapsedMilliseconds);
 
             string folderPath = Path.Combine(Application.StartupPath, "Data", "db");
-            string dbPath = Path.Combine(folderPath, "stage_1.db");
+            string dbPath = Path.Combine(folderPath, dbname);
+            Console.WriteLine(dbPath);
             DatabaseHelper dh = new DatabaseHelper(dbPath, folderPath);
-            List<QA> Possible_results = dh.SearchForMatchInFTS5(answers , "qa_search");
+            List<QA> Possible_results = dh.SearchForMatchInFTS5(answers, "qa_search");
 
             if (Possible_results.Count == 0)
                 return;
@@ -154,19 +182,19 @@ namespace Project_screenshot_ai
 
             string originalQuestion = "";
 
-            foreach(string s in answers)
+            foreach (string s in answers)
             {
                 originalQuestion += s;
             }
 
-            Console.WriteLine("elapsted 2 : " + sw.ElapsedMilliseconds);
+            //Console.WriteLine("elapsted 2 : " + sw.ElapsedMilliseconds);
 
             float bestMatchingFactor = 0;
             int i = 0;
             int bestMatchingFactorIndex = 0;
             foreach (QA p in Possible_results)
             {
-                float mf = LevinshtienDistance(originalQuestion , p.Question);
+                float mf = LevinshtienDistance(originalQuestion, p.Question);
                 if (mf > bestMatchingFactor)
                 {
                     bestMatchingFactor = mf;
@@ -177,28 +205,22 @@ namespace Project_screenshot_ai
 
             QA res = Possible_results[bestMatchingFactorIndex];
 
-            if (label_verify_question.Text == res.Question)
-                return;
-
-            if (res.Answer.Trim().Equals("נכון"))
-                resultLabel.BackColor = Color.Lime;
-            else
-                resultLabel.BackColor = Color.Red;
-
-            
-           Color randomColor = Color.FromArgb(rnd.Next(100, 256), rnd.Next(100, 256), rnd.Next(100, 256));
-           label_verify_question.BackColor = randomColor;
-
-
-           ShowResult(res.Answer , res.Question);
+            ShowResult(res.Answer, res.Question);
 
             sw.Stop();
             Console.WriteLine($"elapsted 3 : {sw.ElapsedMilliseconds} ms");
-
             Console.WriteLine(Possible_results[bestMatchingFactorIndex].Question);
 
 
 
+        }
+        public string[] cleanString(string text)
+        {
+            char[] sp = { '\n', '\r' };
+
+            string clean = Regex.Replace(text, "[\\[\\]<>]", "");
+            clean = clean.Replace("\"", "");
+            return clean.Split(sp);
         }
 
         public static Bitmap Preprocess(Bitmap input)
@@ -225,7 +247,7 @@ namespace Project_screenshot_ai
 
             for (int y = 0; y < gray.Height; y++)
             {
-                for(int x = 0; x < gray.Width; x++)
+                for (int x = 0; x < gray.Width; x++)
                 {
                     Color pixel = gray.GetPixel(x, y);
                     int brightness = (pixel.R + pixel.G + pixel.B) / 3;
@@ -250,14 +272,14 @@ namespace Project_screenshot_ai
             {
                 for (int x = 0; x < image.Width; x++)
                 {
-                     Color pixel = image.GetPixel(x, y);
+                    Color pixel = image.GetPixel(x, y);
                     int brightness = (pixel.R + pixel.G + pixel.B) / 3;
                     totalBrightness += brightness;
                 }
             }
 
             long totalPixels = image.Width * image.Height;
-            int averageBrightness = (int) (totalBrightness / totalPixels);
+            int averageBrightness = (int)(totalBrightness / totalPixels);
 
             return averageBrightness < 128;
         }
@@ -300,34 +322,71 @@ namespace Project_screenshot_ai
 
         private void Capture_screenshot_Click(object sender, EventArgs e)
         {
+
             if (selectedRegion == Rectangle.Empty)
                 return;
 
-            ScreenCaptureForDisplay = CaptureRegion(selectedRegion);
+            this.Invoke((MethodInvoker)delegate
+            {
 
-            pictureBox1.SizeMode = PictureBoxSizeMode.AutoSize;
-            pictureBox1.Image = ScreenCaptureForDisplay;
+                ScreenCaptureForDisplay = CaptureRegion(selectedRegion);
+                pictureBox1.SizeMode = PictureBoxSizeMode.AutoSize;
+                pictureBox1.Image = ScreenCaptureForDisplay;
 
-            int extraHeight = captureButton.Height + 85;
-            int newWidth = Math.Max(pictureBox1.Width + 40 , this.MinimumSize.Width);
-            int newHeight = Math.Max(pictureBox1.Height + extraHeight, this.MinimumSize.Height);
+                int extraHeight = captureButton.Height + 85;
+                int newWidth = Math.Max(pictureBox1.Width + 40, this.MinimumSize.Width);
+                int newHeight = Math.Max(pictureBox1.Height + extraHeight, this.MinimumSize.Height);
 
-            this.Size = new Size(newWidth, newHeight);
+                this.Size = new Size(newWidth, newHeight);
+                this.Refresh();
+            });
 
 
         }
 
         string[] Tokenize(string text)
         {
-            string normalized = text.ToLower();
-            normalized = Regex.Replace(normalized, @"[\u0590-\u05C7]", "");
+            // Remove nikud
+            string normalized = Regex.Replace(text, @"[\u0590-\u05C7]", "");
 
-            return Regex.Split(normalized, @"\s+")
-                .Where(t => t.Length > 0)
-                .ToArray();
+            normalized = Regex.Replace(
+                normalized,
+                @"\b([ל])[\s-]*([א-ת])",
+                "$1- $2"
+            );
+            // Split into words
+            string[] tokens = Regex.Split(normalized, @"\s+")
+                                   .Where(t => t.Length > 0)
+                                   .ToArray();
+
+            if (targetWords.All(word => text.Contains(word)))
+            {
+                int start = -1;
+                int end = -1;
+                for (int i = 0; i < tokens.Length; i++)
+                {
+                    if (targetWords.Contains(tokens[i]))
+                    {
+                        if (start == -1) start = i;
+                        end = i; // keep updating to last occurrence
+                    }
+                }
+
+                if (start != -1 && end != -1)
+                {
+
+                    int length = end - start + 2;
+                    if (length > tokens.Length)
+                        tokens.Skip(start).Take(tokens.Length - start).ToArray();
+
+                    return tokens.Skip(start).Take(length).ToArray();
+                }
+            }
+
+            return tokens;
         }
 
-        public Bitmap ScaleBitmap(Bitmap source , float scale)
+        public Bitmap ScaleBitmap(Bitmap source, float scale)
         {
             int newWidth = (int)(source.Width * scale);
             int newHeight = (int)(source.Height * scale);
@@ -336,49 +395,51 @@ namespace Project_screenshot_ai
             using (var g = Graphics.FromImage(bmp))
             {
                 g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                g.DrawImage(source , 0 , 0 , newWidth , newHeight );
+                g.DrawImage(source, 0, 0, newWidth, newHeight);
             }
 
             return bmp;
         }
 
-        private float LevinshtienDistance(string originalQuestion , string questionFromDb)
+        private float LevinshtienDistance(string originalQuestion, string questionFromDb)
         {
             var sourceLength1 = originalQuestion.Length;
             var sourceLength2 = questionFromDb.Length;
 
-            var matrix = new int[sourceLength1 + 1 , sourceLength2 + 1];
+            var matrix = new int[sourceLength1 + 1, sourceLength2 + 1];
 
             if (sourceLength1 == 0)
                 return sourceLength2;
 
-            if(sourceLength2 == 0)
+            if (sourceLength2 == 0)
                 return sourceLength1;
 
             int i, j;
-            for(i = 0; i <= sourceLength1;matrix[i,0]= i++) { }
+            for (i = 0; i <= sourceLength1; matrix[i, 0] = i++) { }
             for (j = 0; j <= sourceLength2; matrix[0, j] = j++) { }
 
-            for (i = 1; i <= sourceLength1; i++) {
-                for (j = 1; j <= sourceLength2; j++) {
-                    var cost = (questionFromDb[j-1] == originalQuestion[i-1]) ? 0 : 1;
+            for (i = 1; i <= sourceLength1; i++)
+            {
+                for (j = 1; j <= sourceLength2; j++)
+                {
+                    var cost = (questionFromDb[j - 1] == originalQuestion[i - 1]) ? 0 : 1;
 
                     matrix[i, j] = Math.Min(Math.Min(matrix[i - 1, j] + 1, matrix[i - 1, j - 1] + cost), matrix[i, j - 1] + 1);
 
                 }
             }
 
-            return (1 - (float)matrix[i-1 , j-1]/Math.Max(sourceLength2,sourceLength1));
+            return (1 - (float)matrix[i - 1, j - 1] / Math.Max(sourceLength2, sourceLength1));
         }
     }
 }
 
-    
 
-        public class MyItem
-        {
-            public string question { get; set; }
-            public string answer { get; set; }
-        }
-   
+
+public class MyItem
+{
+    public string question { get; set; }
+    public string answer { get; set; }
+}
+
 

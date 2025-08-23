@@ -15,7 +15,7 @@ namespace Project_screenshot_ai
         {
             this.console = console;
             this.file = file;
-            file = new StreamWriter(new FileStream("log.txt", FileMode.Append, FileAccess.Write, FileShare.Read));
+            file = new StreamWriter(new FileStream("logs.txt", FileMode.Append, FileAccess.Write, FileShare.Read));
         }
 
         public override void WriteLine(string value)

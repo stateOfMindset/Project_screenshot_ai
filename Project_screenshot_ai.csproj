@@ -129,8 +129,12 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <None Include="Data\docs\פירמידה שלב 1.docx" />
+    <None Include="Data\docs\פירמידה שלב 2.docx" />
     <None Include="Data\json\stage_1.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Data\json\stage_2.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Data\tessdata\heb.traineddata">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -145,6 +149,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <None Include="Services\parsing_docx_file_1.py" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -152,7 +157,6 @@
   <ItemGroup>
     <Folder Include="Data\db\" />
     <Folder Include="Data\images\" />
-    <Folder Include="Services\" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">

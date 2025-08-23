@@ -19,6 +19,7 @@ namespace Project_screenshot_ai
     internal class DatabaseHelper
     {
         private readonly string _connectionString;
+        
 
         public DatabaseHelper(string dbPath , string folderPath)
         {
@@ -88,13 +89,14 @@ namespace Project_screenshot_ai
                 return result;
 
             string matchQuery = string.Join(" OR ", matches.Select(m => $"\"{m}\""));
+         
 
             using(var conn = new SQLiteConnection(_connectionString))
             {
                 conn.Open();
                 conn.EnableExtensions(true);
                 conn.LoadExtension("SQLite.Interop.dll", "sqlite3_fts5_init");
-                matchQuery.Replace(@"\" , "");
+                
 
                 var searchCmd = conn.CreateCommand();
                 searchCmd.CommandText = $"SELECT Question, Answer FROM {db_name} WHERE Question MATCH $term;";
