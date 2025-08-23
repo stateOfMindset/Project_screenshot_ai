@@ -14,7 +14,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Tesseract;
+using FuzzySharp;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using Project_screenshot_ai.Forms;
 
 namespace Project_screenshot_ai
 {
@@ -26,20 +28,16 @@ namespace Project_screenshot_ai
         private OverlayForm overlay;
         private Bitmap ScreenCaptureForDisplay;
         private Random rnd = new Random();
-
+        private string dbname;
         private string[] targetWords = { "מילה", "ל-", "נרדפת" };
-        internal string dbname { get; set; }
-
-        Dictionary<string, string> synonymMap = new Dictionary<string, string>
-{
-        { "new york", "nyc" },
-        { "machine learning", "ml" },
-        { "artificial intelligence", "ai" }
-};
+        private AddAnswerForm addAnswerForm;
+        private string current_question;
+  
+     
 
 
 
-        public Form1(string dbname)
+        public Form1()
         {
             InitializeComponent();
             screenshotTimer = new System.Windows.Forms.Timer();
@@ -48,7 +46,7 @@ namespace Project_screenshot_ai
 
             screenshotTimer.Tick += ScreenshotTimer_Tick;
             screenshotTimer.Tick += Capture_screenshot_Click;
-            this.dbname = dbname;
+            this.dbname = GlobalData.dbname;
 
 
         }
@@ -184,32 +182,23 @@ namespace Project_screenshot_ai
 
             foreach (string s in answers)
             {
-                originalQuestion += s;
+                 originalQuestion += s + " ";
             }
+            current_question = originalQuestion;
 
             //Console.WriteLine("elapsted 2 : " + sw.ElapsedMilliseconds);
 
-            float bestMatchingFactor = 0;
-            int i = 0;
-            int bestMatchingFactorIndex = 0;
-            foreach (QA p in Possible_results)
-            {
-                float mf = LevinshtienDistance(originalQuestion, p.Question);
-                if (mf > bestMatchingFactor)
-                {
-                    bestMatchingFactor = mf;
-                    bestMatchingFactorIndex = i;
-                }
-                i++;
-            }
 
-            QA res = Possible_results[bestMatchingFactorIndex];
+            var bestMatch = Possible_results
+    
+                .OrderByDescending(q => Fuzz.TokenSortRatio(originalQuestion , q.Question))
+                .First();               
 
-            ShowResult(res.Answer, res.Question);
+            ShowResult(bestMatch.Answer, bestMatch.Question);
 
             sw.Stop();
             Console.WriteLine($"elapsted 3 : {sw.ElapsedMilliseconds} ms");
-            Console.WriteLine(Possible_results[bestMatchingFactorIndex].Question);
+            Console.WriteLine(bestMatch.Question);
 
 
 
@@ -359,7 +348,7 @@ namespace Project_screenshot_ai
                                    .Where(t => t.Length > 0)
                                    .ToArray();
 
-            if (targetWords.All(word => text.Contains(word)))
+            if (targetWords.All(word => tokens.Contains(word)))
             {
                 int start = -1;
                 int end = -1;
@@ -376,6 +365,13 @@ namespace Project_screenshot_ai
                 {
 
                     int length = end - start + 2;
+
+                    string checkForMoreThanOneWordSynonims = checkIfInDic(tokens[end+1]);
+                    if(checkForMoreThanOneWordSynonims != null)
+                    {
+                        tokens[end + 1] = checkForMoreThanOneWordSynonims;
+                    }
+
                     if (length > tokens.Length)
                         tokens.Skip(start).Take(tokens.Length - start).ToArray();
 
@@ -384,6 +380,15 @@ namespace Project_screenshot_ai
             }
 
             return tokens;
+        }
+
+        public string checkIfInDic(string key)
+        {
+            if(GlobalData.Synonyms.ContainsKey(key))
+            {
+                return GlobalData.Synonyms[key];
+            }
+            return null;
         }
 
         public Bitmap ScaleBitmap(Bitmap source, float scale)
@@ -401,36 +406,17 @@ namespace Project_screenshot_ai
             return bmp;
         }
 
-        private float LevinshtienDistance(string originalQuestion, string questionFromDb)
+        private void button1_Click(object sender, EventArgs e)
         {
-            var sourceLength1 = originalQuestion.Length;
-            var sourceLength2 = questionFromDb.Length;
 
-            var matrix = new int[sourceLength1 + 1, sourceLength2 + 1];
+           
+            addAnswerForm = new AddAnswerForm(current_question);
+            addAnswerForm.Location = overlay.PointToScreen(new Point((overlay.Width - addAnswerForm.Width) / 2, overlay.Height));
 
-            if (sourceLength1 == 0)
-                return sourceLength2;
 
-            if (sourceLength2 == 0)
-                return sourceLength1;
-
-            int i, j;
-            for (i = 0; i <= sourceLength1; matrix[i, 0] = i++) { }
-            for (j = 0; j <= sourceLength2; matrix[0, j] = j++) { }
-
-            for (i = 1; i <= sourceLength1; i++)
-            {
-                for (j = 1; j <= sourceLength2; j++)
-                {
-                    var cost = (questionFromDb[j - 1] == originalQuestion[i - 1]) ? 0 : 1;
-
-                    matrix[i, j] = Math.Min(Math.Min(matrix[i - 1, j] + 1, matrix[i - 1, j - 1] + cost), matrix[i, j - 1] + 1);
-
-                }
-            }
-
-            return (1 - (float)matrix[i - 1, j - 1] / Math.Max(sourceLength2, sourceLength1));
         }
+
+ 
     }
 }
 

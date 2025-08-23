@@ -26,9 +26,15 @@ namespace Project_screenshot_ai
             InitiateStreamWriter();
             InitiateDB();
 
-            string mydb = "myDataBase.db";
+            string jsonSynonymsPath = returnSynonimsDictionaryJsonFilePath();
+            string jsonLoaded = File.ReadAllText(jsonSynonymsPath);
+            GlobalData.dbname = "myDataBase.db";
+            GlobalData.Synonyms = JsonConvert.DeserializeObject<Dictionary<string,string>>(jsonLoaded);
+            GlobalData.JsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data" , "json");
 
-            Application.Run(new Form1(mydb));
+
+
+            Application.Run(new Form1());
 
         }
 
@@ -45,7 +51,7 @@ namespace Project_screenshot_ai
         {
             string folderPath = Path.Combine(Application.StartupPath, "Data", "db");
             string dbPath = Path.Combine(folderPath, "myDataBase.db");
-            string[] feed = setPathToJsonName(new string[] { "stage_1.json", "stage_2.json" });
+            string[] feed = setPathToJsonName(new string[] { "stage_1.json", "stage_2.json", "stage_3.json", "stage_4.json", "stage_5.json" , "stage_6.json" });
             string jsonPath = CombineJsons(feed , dbPath);
 
             
@@ -111,6 +117,11 @@ namespace Project_screenshot_ai
         private static string setCombinedJsonsFileNameAndPath()
         {
             return Path.Combine(Application.StartupPath, "Data", "json" , "merged.json");
+        }
+
+        private static string returnSynonimsDictionaryJsonFilePath()
+        {
+            return Path.Combine(Application.StartupPath, "Data", "json", "stage_2_dicotionary_more_than_one_word.json");
         }
     }
 }

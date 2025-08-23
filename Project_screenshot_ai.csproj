@@ -51,6 +51,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="FuzzySharp, Version=1.0.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\FuzzySharp.2.0.2\lib\net461\FuzzySharp.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Data.Sqlite, Version=9.0.8.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Data.Sqlite.Core.9.0.8\lib\netstandard2.0\Microsoft.Data.Sqlite.dll</HintPath>
     </Reference>
@@ -105,14 +108,24 @@
     <Compile Include="Forms\Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\AddAnswerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\AddAnswerForm.Designer.cs">
+      <DependentUpon>AddAnswerForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\OverlayForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="GlobalData.cs" />
     <Compile Include="JsonHelper.cs" />
     <Compile Include="StreamWriterMulti.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QA.cs" />
+    <EmbeddedResource Include="Forms\AddAnswerForm.resx">
+      <DependentUpon>AddAnswerForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Forms\Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>
@@ -130,10 +143,27 @@
     </Compile>
     <None Include="Data\docs\פירמידה שלב 1.docx" />
     <None Include="Data\docs\פירמידה שלב 2.docx" />
+    <None Include="Data\docs\פירמידה שלב 3.docx" />
+    <None Include="Data\docs\פירמידה שלב 4.docx" />
     <None Include="Data\json\stage_1.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Include="Data\json\stage_2_dicotionary_more_than_one_word.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Data\json\stage_2.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Data\json\stage_3.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Data\json\stage_4.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Data\json\stage_5.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Data\json\stage_6.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Data\tessdata\heb.traineddata">
@@ -149,6 +179,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <None Include="Services\Dictionary_more_than_one_word_script.py" />
     <None Include="Services\parsing_docx_file_1.py" />
   </ItemGroup>
   <ItemGroup>
