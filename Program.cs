@@ -30,7 +30,10 @@ namespace Project_screenshot_ai
             string jsonLoaded = File.ReadAllText(jsonSynonymsPath);
             GlobalData.dbname = "myDataBase.db";
             GlobalData.Synonyms = JsonConvert.DeserializeObject<Dictionary<string,string>>(jsonLoaded);
-            GlobalData.JsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data" , "json");
+            GlobalData.JsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory , "Data" , "json");
+            string baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory);
+            string projRoot = Path.GetFullPath(Path.Combine(baseDir , @"..\.."));
+            GlobalData.RootJsonPath = Path.Combine(projRoot , "Data" , "json");
 
 
 

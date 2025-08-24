@@ -12,5 +12,7 @@ namespace Project_screenshot_ai
         internal static string dbname { get; set; }
 
         internal static string JsonPath { get; set; }
+
+        internal static string RootJsonPath { get; set; }
     }
 }

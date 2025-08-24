@@ -16,31 +16,46 @@ namespace Project_screenshot_ai.Forms
     {
         public int SelectedNumber { get; private set; }
         public string Answer { get; private set; }
+        public Point location { get; private set; }
+        public string question { get; private set; }
 
 
-        public AddAnswerForm(string question )
+        public AddAnswerForm(string question , Point location)
         {
             InitializeComponent();
 
-            // Fill dropdown with numbers 1–6
+            this.location = location;
+            this.question = question;
+
             for (int i = 1; i <= 6; i++)
                 comboBoxNumber.Items.Add(i);
 
-            comboBoxNumber.SelectedIndex = 0; // default to 1
-
-            lblQuestion.Text =  question; // set question label
-
             setSettings();
+            this.Load += AddAnswerForm_Load;
+           
+
+        }
+  
+        private void AddAnswerForm_Load(object sender, EventArgs e)
+        {       
+               this.Location = new Point( location.X, location.Y);
+               this.Refresh();
+        }
+
+
+        private void setSettings()
+        {
+            comboBoxNumber.SelectedIndex = 0;
+            if(question != null)
+                lblQuestion.AppendText(question);
+
+
 
             lblQuestion.RightToLeft = RightToLeft.Yes;
             lblQuestion.ImeMode = ImeMode.On;
             InputLanguage.CurrentInputLanguage = InputLanguage.FromCulture(new System.Globalization.CultureInfo("he-IL"));
 
-        }
-
-        private void setSettings()
-        {
-            
+            this.StartPosition = FormStartPosition.Manual;
             this.FormBorderStyle = FormBorderStyle.None;
             this.TopMost = true;
             this.Opacity = 0.85;
@@ -54,8 +69,9 @@ namespace Project_screenshot_ai.Forms
             // Get values
             SelectedNumber = (int)comboBoxNumber.SelectedItem;
             Answer = txtAnswer.Text.Trim();
+            string question_fromInput = lblQuestion.Text;
 
-            if (string.IsNullOrEmpty(Answer))
+            if (string.IsNullOrEmpty(Answer) || string.IsNullOrEmpty(question_fromInput))
             {
                 MessageBox.Show("Please enter an answer!", "Missing Data",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -63,13 +79,15 @@ namespace Project_screenshot_ai.Forms
             }
 
             DialogResult = DialogResult.OK;
+            
+            SaveToJson(SelectedNumber , question_fromInput, Answer);
             Close();
         }
 
         public void SaveToJson(int stageNumber, string question, string answer)
         {
             string fileName = $"stage_{stageNumber}.json";
-            string filePath = (Path.Combine(GlobalData.JsonPath, fileName));
+            string filePath = (Path.Combine(GlobalData.RootJsonPath, fileName));
 
             List<QA> entries = new List<QA>();
 

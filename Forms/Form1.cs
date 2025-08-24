@@ -409,9 +409,15 @@ namespace Project_screenshot_ai
         private void button1_Click(object sender, EventArgs e)
         {
 
-           
-            addAnswerForm = new AddAnswerForm(current_question);
-            addAnswerForm.Location = overlay.PointToScreen(new Point((overlay.Width - addAnswerForm.Width) / 2, overlay.Height));
+            if (addAnswerForm == null || addAnswerForm.IsDisposed)
+            {
+                int x_cords = overlay.SelectionRectangle.Location.X + (overlay.SelectionRectangle.Width  - 713)/2;
+                int y_cords = overlay.SelectionRectangle.Height + overlay.SelectionRectangle.Location.Y;
+                Point location = new Point(x_cords, y_cords);
+                addAnswerForm = new AddAnswerForm(current_question , location);
+
+                addAnswerForm.Show();
+            }
 
 
         }
